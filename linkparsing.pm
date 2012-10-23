@@ -67,6 +67,19 @@ sub parse_links{
 	$title =~ s/\&#x26;/\&/;
 	print $sock "PRIVMSG $in_channel :[imdb] $title\r\n";
     }
+    elsif($in_text =~ /pastebin.com/){
+	$in_text =~ /pastebin.com\/(\S*)/;
+	print $1, "\n";
+	my $request = $ua->get("http://pastebin.com/$1");
+	$request->content =~ /<title>(\S*)/;
+        print $sock "PRIVMSG $in_channel :$1\r\n";
+    }
+    elsif($in_text =~ /^:ducka!/){
+        print $sock "PRIVMSG $in_channel :Anka?\r\n";
+    }
+    elsif($in_text =~ /^:anka?/){
+        print $sock "PRIVMSG $in_channel :Ducka!\r\n";
+    }
 }
 
 1;
