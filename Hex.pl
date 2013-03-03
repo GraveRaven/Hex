@@ -4,7 +4,7 @@ use strict;
 use IO::Socket;
 use LWP::UserAgent;
 use DBI;
-use v5.10;
+use v5.14;
 
 #my packages
 require RPS;
