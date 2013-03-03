@@ -18,6 +18,7 @@ my $admin_mask = "";
 my $admin_nick = "default";
 my $admin_password = "password";
 my $RPS_channel = "#default";
+our %last_seen = ();
 
 #ALLOW
 our $allow_youtube = 1;
@@ -73,6 +74,9 @@ while(my $input = <$sock>){
     # If its a ping send a pong
     if($in_mask eq "PING"){
 	print $sock "PONG $in_type\r\n";
+    }
+    elsif($in_type eq "JOIN" || $in_type eq "PART" || $in_type eq "QUIT"){
+        update_last_seen($in_mask, $in_type);
     }
     elsif($in_type eq "PRIVMSG"){
 	
@@ -279,4 +283,13 @@ sub playRPS{
 	$RPS::player1_choice = $choice;
 	$RPS::phase = 1;
     }
+}
+
+sub update_last_seen{
+    my $mask = shift;
+    my $type = shift;
+    (my $nick, my $from) = $mask =~ /^:(.*?)!~([^ ]*)/;
+    my $time = `date +"%T %b %d %Y"`;
+    print "Adding $time $from $type\n";
+    $last_seen{$nick} =  [$time  ,$from, $type];
 }

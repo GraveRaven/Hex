@@ -11,28 +11,34 @@ sub parse_command{
     $command = substr $command, 1;
 
     if($command eq "!score"){
-	score($sock, $in_channel, $arguments);
-    }# End of !score
+	    score($sock, $in_channel, $arguments);
+    }
     elsif($command eq "!whattowatch"){
-	whattowatch($sock, $in_channel);
+        whattowatch($sock, $in_channel);
     }
     elsif($command eq "!allabarnen"){
-	allabarnen($sock, $in_channel, $arguments);
+        allabarnen($sock, $in_channel, $arguments);
     }
     elsif($command eq "!addbarnen"){
-	addbarnen($sock, $in_nick, $arguments);
+        addbarnen($sock, $in_nick, $arguments);
     }
     elsif($command eq "!excuse"){
-	excuse($sock, $in_channel);
+        excuse($sock, $in_channel);
     }
     elsif($command eq "!hat"){
-	hat($sock, $in_channel, $arguments);
+        hat($sock, $in_channel, $arguments);
     }
     elsif($command eq "!jaghatar"){
-	jaghatar($sock, $in_nick, $arguments);
+        jaghatar($sock, $in_nick, $arguments);
     }
-    elsif($command eq "!whattoeat"){
-	print $sock "PRIVMSG $in_channel :tomten i tomatsås\r\n";
+    elsif($command eq "!seen"){
+        show_last($sock, $in_channel, $arguments);
+    }
+    elsif($command eq "!addquote"){
+
+    }
+    elsif($command eq "!quote"){
+        quote($sock, $in_channel, $arguments);
     }
 }
 
@@ -129,33 +135,78 @@ sub allabarnen{
     my $arguments = shift;
 
     my $sth;
+
     if(defined $arguments){
-	my ($p1, $p2) = split (/ /,$arguments, 2);
-	if($p1 eq "av"){
-	    $sth = $dbh->prepare('select nick, joke from allabarnen where nick = ? order by rand() limit 1;');
-	    $sth->execute($p2);
-	}
-	else{
-	    $sth = $dbh->prepare("select nick, joke from allabarnen where joke like ? order by rand() limit 1;");
-	    $sth->execute("%" . $p1 . "%");
-	}
-    }
+        my @input = split (/ /,$arguments, 4);
+        
+        my $with;
+        my $by;
+        
+        if($#input == 0){
+            $with = $input[0];
+        }
+        elsif($input[0] eq "om"){
+            $with = $input[1];
+        }
+        elsif($input[0] eq "av"){
+            $by = $input[1];
+        }
+
+        if($#input == 3){
+            if($input[2] eq "om"){
+                $with = $input[3];
+            }
+            elsif($input[2] eq "av"){
+                $by = $input[3];
+            }
+        }
+
+        if(defined($with) && defined($by)){
+            $sth = $dbh->prepare('select nick, joke from allabarnen where nick = ? and joke like ? order by rand() limit 1;');
+            $sth->bind_param(1, $by);
+            $sth->bind_param(2, "%" . $with . "%");
+            $error = "$by har aldrig skämtat om $with";
+        }
+        elsif(defined($with)){
+            $sth = $dbh->prepare('select nick, joke from allabarnen where joke like ? order by rand() limit 1;');
+            $sth->bind_param(1, "%" . $with . "%");
+            $error = "Hittar inga skämt om $with";
+        }
+        elsif(defined($by)){
+            $sth = $dbh->prepare('select nick, joke from allabarnen where nick = ? order by rand() limit 1;');
+            $sth->bind_param(1, $by);
+            $error = "$by är en tråkig jävel som aldrig drar några skämt";
+        }
+        else{
+            $error = "Kanske borde fixa din syntax";
+        }
+    }#endif defined $arguments
     else{
-	$sth = $dbh->prepare("select nick, joke from allabarnen order by rand() limit 1;");
-	
-	if(!$sth->execute){
-	    $dbh = sqlconnect();
-	    sleep(5);
-	    $sth = $dbh->prepare("select nick, joke from allabarnen order by rand() limit 1;");
-	    $sth->execute;
-	}
+        $sth = $dbh->prepare("select nick, joke from allabarnen order by rand() limit 1;");
+        $error = "Det va mig ett udda jävla fel";
     }
     
-    my @answer = $sth->fetchrow_array;
+    my @answer;
+
+    if(defined($sth)){
+        if(!$sth->execute()){
+            $dbh = sqlconnect();
+            sleep(5);
+            $sth = $dbh->prepare("select nick, joke from allabarnen order by rand() limit 1;");
+            $sth->execute;
+        }
+
+        @answer = $sth->fetchrow_array;
+    }
+
     if(defined $answer[0]){
-	print $sock "PRIVMSG $in_channel :<$answer[0]> $answer[1]\r\n";
+        print $sock "PRIVMSG $in_channel :<$answer[0]> $answer[1]\r\n";
+    }
+    else{
+        print $sock "PRIVMSG $in_channel :$error\r\n";
     }
 }
+
 sub addbarnen{
     my $sock = shift;
     my $in_nick = shift;
@@ -230,6 +281,66 @@ sub jaghatar{
 	$sth = $dbh->prepare("insert into hate (nick, hat) values (?,?);");
 	$sth->execute($in_nick, $arguments)
     }
+}
+
+sub show_last{
+    my $sock = shift;
+    my $channel = shift;
+    my $nick = shift;
+    
+    print "Looking for $nick\n";
+    
+    if (exists $last_seen{$nick}){
+        print $sock "PRIVMSG $channel :$nick was last seen ", lc($last_seen{$nick}[2]), "ing from ", $last_seen{$nick}[1], " at ", $last_seen{$nick}[0], "\r\n";
+    }
+    else{
+        print $sock "PRIVMSG $channel :$nick has never been seen\r\n"
+    }
+}
+
+sub quote{
+    my $sock = shift;
+    my $channel = shift;
+    my $arguments = shift;
+    my $sth;
+    my $statement = "select * from quotes order by rand() limit 1;";
+
+    if(defined($arguments)){
+        @input = split(//, $arguments);
+
+        if(lc($input[0]) eq "id"){
+            $sth = $dbh->prepare("select * from quotes where id == ?;");
+            $sth->bind_param(1, $input[0]);
+        }
+        else{
+            $statement = "select * from quotes where quote like ? ";
+            for(my $i = $#arguments; $i < $arguments; $i++ ){
+                $statement .= "and quote like ? ";
+            }
+
+            $statement .= ";";
+            $sth = $dbh->prepare($statement);
+
+            foreach(0..$#arguments){
+                print "BINDING $_\n";
+                $sth->bind_param($_, $arguments[$_]);
+            }
+        }
+    }else{
+        $sth = $dbh->prepare("select * from quotes order by rand() limit 1;");
+    }
+
+    if(!$sth->execute()){
+        $dbh = sqlconnect();
+        sleep(5);
+        $sth->execute();
+    }
+
+    my @answer = $sth->fetchrow_array;
+    print $sock "PRIVMSG $channel :[$answer[0]] $answer[1]\r\n";
+}
+
+sub addquote{
 
 }
 
