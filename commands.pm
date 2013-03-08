@@ -35,7 +35,7 @@ sub parse_command{
         show_last($sock, $in_channel, $arguments);
     }
     elsif($command eq "!addquote"){
-
+        addquote($sock, $arguments);
     }
     elsif($command eq "!quote"){
         quote($sock, $in_channel, $arguments);
@@ -341,7 +341,20 @@ sub quote{
 }
 
 sub addquote{
-
+    my $sock = shift;
+    my $arguments = shift;
+    my $sth;
+    
+    if(defined $arguments){
+        $sth = $dbh->prepare("insert into quotes (quote) values(?);");
+        $sth->bind_param(1, $arguments);
+   
+        if(!$sth->execute()){
+            $dbh = sqlconnect();
+            sleep(5);
+            $sth->execute();
+        }
+    }
 }
 
 1;
