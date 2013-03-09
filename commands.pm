@@ -306,24 +306,26 @@ sub quote{
     my $statement = "select * from quotes order by rand() limit 1;";
 
     if(defined($arguments)){
-        @input = split(//, $arguments);
+        @input = split(/ /, $arguments);
 
         if(lc($input[0]) eq "id"){
-            $sth = $dbh->prepare("select * from quotes where id == ?;");
-            $sth->bind_param(1, $input[0]);
+            $sth = $dbh->prepare("select * from quotes where id = ?;");
+            $sth->bind_param(1, $input[1]);
         }
         else{
             $statement = "select * from quotes where quote like ? ";
-            for(my $i = $#arguments; $i < $arguments; $i++ ){
+
+            for(my $i = 0; $i < $#input; $i++ ){
                 $statement .= "and quote like ? ";
             }
-
+            
             $statement .= ";";
+            
+            
             $sth = $dbh->prepare($statement);
 
-            foreach(0..$#arguments){
-                print "BINDING $_\n";
-                $sth->bind_param($_, $arguments[$_]);
+            foreach(0..$#input){
+                $sth->bind_param($_ +1, "%" . $input[$_] . "%");
             }
         }
     }else{
@@ -337,7 +339,14 @@ sub quote{
     }
 
     my @answer = $sth->fetchrow_array;
-    print $sock "PRIVMSG $channel :[$answer[0]] $answer[1]\r\n";
+
+    if(defined($answer[0])){
+        print $sock "PRIVMSG $channel :[$answer[0]] $answer[1]\r\n";
+    }
+    else{
+        print $sock "PRIVMSG $channel :No such quote\r\n";
+    }
+        
 }
 
 sub addquote{
