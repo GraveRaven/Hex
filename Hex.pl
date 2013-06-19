@@ -5,6 +5,7 @@ use IO::Socket;
 use LWP::UserAgent;
 use DBI;
 use v5.14;
+use HTML::Entities;
 
 #my packages
 require RPS;
