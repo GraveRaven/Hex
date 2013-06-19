@@ -40,6 +40,10 @@ sub parse_command{
     elsif($command eq "!quote"){
         quote($sock, $in_channel, $arguments);
     }
+    elsif($command eq "!peanuts"){
+        peanuts($sock, $in_channel);
+    }
+
 }
 
 sub score{
@@ -363,6 +367,29 @@ sub addquote{
             sleep(5);
             $sth->execute();
         }
+    }
+}
+
+sub peanuts{
+    my $sock = shift;
+    my $channel = shift;
+    my $sth;
+
+    $sth = $dbh->prepare("select quote from peanuts order by rand() limit 1;");
+
+    if(!$sth->execute()){
+        $dbh = sqlconnect();
+        sleep(5);
+        $sth->execute();
+    }
+
+    my @answer = $sth->fetchrow_array;
+
+    if(defined($answer[0])){
+        print $sock "PRIVMSG $channel :$answer[0]\r\n";
+    }
+    else{
+        print $sock "PRIVMSG $channel :Something fucked up\r\n";
     }
 }
 
